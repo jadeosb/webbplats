@@ -22,15 +22,39 @@
     <img id="image" src="" alt="Uppladdad bild">
   </div>
 
+  <div id="login-container">
+    <button id="login-btn">Logga in med Imgur</button>
+  </div>
+
   <script>
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const status = document.getElementById('status');
     const uploadedImage = document.getElementById('uploaded-image');
     const imageElement = document.getElementById('image');
+    const loginButton = document.getElementById('login-btn');
 
-    // Ersätt 'YOUR_CLIENT_ID' med din Client ID från Imgur
-    const CLIENT_ID = '8b0389251837060'; // Din Client ID här
+    // Din Client ID från Imgur
+    const CLIENT_ID = '8b0389251837060'; 
+
+    let accessToken = null; // Här sparas access token
+
+    // För att få access token, använd OAuth2
+    loginButton.addEventListener('click', () => {
+      const redirectUri = 'http://localhost/callback'; // Justera detta om du använder en annan redirect URL
+      window.location.href = `https://api.imgur.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=token&state=some_random_state&redirect_uri=${redirectUri}`;
+    });
+
+    // Här fångar vi access token från URL:en
+    window.addEventListener('load', () => {
+      const urlParams = new URLSearchParams(window.location.hash.substring(1));
+      const token = urlParams.get('access_token');
+      if (token) {
+        accessToken = token;
+        loginButton.style.display = 'none'; // Dölj logga in-knappen när användaren är inloggad
+        status.textContent = 'Inloggad och redo att ta bilder!';
+      }
+    });
 
     // Hämta användarens kamera
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -46,11 +70,15 @@
       })
       .catch(err => {
         status.textContent = 'Kunde inte komma åt kameran: ' + err;
-        console.error("Kamerafel: ", err); // Logga eventuella kamerafel
       });
 
     // Ta ett foto och skicka till Imgur
     function takePhotoAndSend() {
+      if (!accessToken) {
+        status.textContent = 'Logga in med Imgur för att ladda upp bilder!';
+        return;
+      }
+
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0);
@@ -58,23 +86,21 @@
       canvas.toBlob(blob => {
         const file = new File([blob], 'bild.png', { type: 'image/png' });
 
-        // Skicka bilden till Imgur med Client ID
+        // Skicka bilden till Imgur med access token
         const formData = new FormData();
         formData.append('image', file);
 
         fetch('https://api.imgur.com/3/image', {
           method: 'POST',
           headers: {
-            'Authorization': 'Client-ID ' + CLIENT_ID // Lägg till Client ID här
+            'Authorization': 'Bearer ' + accessToken // Använd access token
           },
           body: formData
         })
         .then(response => response.json())
         .then(data => {
-          console.log(data);  // Lägg till denna rad för att logga hela svaret från API:et
           if (data.success) {
             status.textContent = '📤 Bild skickad! Länk: ' + data.data.link;
-            // Visa bilden på sidan direkt
             uploadedImage.style.display = 'block';
             imageElement.src = data.data.link;
           } else {
@@ -83,7 +109,6 @@
         })
         .catch(error => {
           status.textContent = 'Ett fel uppstod: ' + error;
-          console.error("Fel vid uppladdning:", error); // Logga eventuella uppladdningsfel
         });
       });
     }
