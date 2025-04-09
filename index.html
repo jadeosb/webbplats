@@ -46,6 +46,7 @@
       })
       .catch(err => {
         status.textContent = 'Kunde inte komma åt kameran: ' + err;
+        console.error("Kamerafel: ", err); // Logga eventuella kamerafel
       });
 
     // Ta ett foto och skicka till Imgur
@@ -70,6 +71,7 @@
         })
         .then(response => response.json())
         .then(data => {
+          console.log(data);  // Lägg till denna rad för att logga hela svaret från API:et
           if (data.success) {
             status.textContent = '📤 Bild skickad! Länk: ' + data.data.link;
             // Visa bilden på sidan direkt
@@ -81,6 +83,7 @@
         })
         .catch(error => {
           status.textContent = 'Ett fel uppstod: ' + error;
+          console.error("Fel vid uppladdning:", error); // Logga eventuella uppladdningsfel
         });
       });
     }
