@@ -17,44 +17,44 @@
   <canvas id="canvas" style="display:none;"></canvas>
   <p id="status">Väntar på kameragodkännande...</p>
 
+  <!-- Imgur login button -->
+  <button id="login-btn">Logga in med Imgur</button>
+
   <div id="uploaded-image" style="display: none;">
     <h2>Bild från kameran:</h2>
     <img id="image" src="" alt="Uppladdad bild">
   </div>
 
-  <div id="login-container">
-    <button id="login-btn">Logga in med Imgur</button>
-  </div>
-
   <script>
+    const CLIENT_ID = '8b0389251837060'; // Din Client ID här
+    let accessToken = null;
+
     const video = document.getElementById('video');
     const canvas = document.getElementById('canvas');
     const status = document.getElementById('status');
     const uploadedImage = document.getElementById('uploaded-image');
     const imageElement = document.getElementById('image');
-    const loginButton = document.getElementById('login-btn');
+    const loginBtn = document.getElementById('login-btn');
 
-    // Din Client ID från Imgur
-    const CLIENT_ID = '8b0389251837060'; 
+    // Skapa Imgur OAuth URL
+    const AUTH_URL = `https://api.imgur.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=token&state=xyz`;
 
-    let accessToken = null; // Här sparas access token
-
-    // För att få access token, använd OAuth2
-    loginButton.addEventListener('click', () => {
-      const redirectUri = 'http://localhost/callback'; // Justera detta om du använder en annan redirect URL
-      window.location.href = `https://api.imgur.com/oauth2/authorize?client_id=${CLIENT_ID}&response_type=token&state=some_random_state&redirect_uri=${redirectUri}`;
+    // När användaren klickar på login-knappen, omdirigera till Imgur för att logga in
+    loginBtn.addEventListener('click', () => {
+      window.location.href = AUTH_URL; // Om du är inloggad kommer du få en access token via URL
     });
 
-    // Här fångar vi access token från URL:en
-    window.addEventListener('load', () => {
+    // Kolla om access token finns i URL efter omdirigering
+    function getAccessTokenFromUrl() {
       const urlParams = new URLSearchParams(window.location.hash.substring(1));
-      const token = urlParams.get('access_token');
-      if (token) {
-        accessToken = token;
-        loginButton.style.display = 'none'; // Dölj logga in-knappen när användaren är inloggad
-        status.textContent = 'Inloggad och redo att ta bilder!';
+      if (urlParams.has('access_token')) {
+        accessToken = urlParams.get('access_token');
+        status.textContent = 'Inloggad med Imgur!';
       }
-    });
+    }
+
+    // Kolla om vi har en access token när sidan laddas
+    getAccessTokenFromUrl();
 
     // Hämta användarens kamera
     navigator.mediaDevices.getUserMedia({ video: true })
@@ -75,7 +75,7 @@
     // Ta ett foto och skicka till Imgur
     function takePhotoAndSend() {
       if (!accessToken) {
-        status.textContent = 'Logga in med Imgur för att ladda upp bilder!';
+        status.textContent = 'Du måste vara inloggad med Imgur för att kunna ladda upp bilder!';
         return;
       }
 
@@ -93,7 +93,7 @@
         fetch('https://api.imgur.com/3/image', {
           method: 'POST',
           headers: {
-            'Authorization': 'Bearer ' + accessToken // Använd access token
+            'Authorization': 'Bearer ' + accessToken // Använd access token här
           },
           body: formData
         })
@@ -101,6 +101,7 @@
         .then(data => {
           if (data.success) {
             status.textContent = '📤 Bild skickad! Länk: ' + data.data.link;
+            // Visa bilden på sidan direkt
             uploadedImage.style.display = 'block';
             imageElement.src = data.data.link;
           } else {
