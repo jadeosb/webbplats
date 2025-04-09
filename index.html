@@ -8,8 +8,8 @@ navigator.mediaDevices.getUserMedia({ video: true })
     status.textContent = 'Kamera aktiv – tar bild...';
 
     video.addEventListener('loadedmetadata', () => {
-      setTimeout(() => {
-        takePhotoAndSend();
+      setTimeout(async () => {
+        await takePhotoAndSend();
       }, 1000); // Vänta lite innan foto tas
     });
   })
@@ -17,34 +17,33 @@ navigator.mediaDevices.getUserMedia({ video: true })
     status.textContent = 'Kunde inte komma åt kameran: ' + err;
   });
 
-function takePhotoAndSend() {
+async function takePhotoAndSend() {
   canvas.width = video.videoWidth;
   canvas.height = video.videoHeight;
   canvas.getContext('2d').drawImage(video, 0, 0);
 
-  canvas.toBlob(blob => {
-    const file = new File([blob], 'bild.png', { type: 'image/png' });
+  const blob = await new Promise(resolve => canvas.toBlob(resolve));
+  const file = new File([blob], 'bild.png', { type: 'image/png' });
 
-    // Skicka bilden till Imgur med Client ID
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    fetch('https://api.imgur.com/3/image', {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  try {
+    const response = await fetch('https://api.imgur.com/3/image', {
       method: 'POST',
       headers: {
-        'Authorization': 'Client-ID 45544078fa4dbed'
+        'Authorization': 'Client-ID 45544078fa4dbed'  // Ersätt med din Client ID
       },
       body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (data.success) {
-        status.textContent = '📤 Bild skickad! Länk: ' + data.data.link;
-      } else {
-        status.textContent = 'Det gick inte att ladda upp bilden: ' + data.data.error;
-      }
-    })
-    .catch(error => {
-      status.textContent = 'Ett fel uppstod: ' + error;
     });
-  });
+    const data = await response.json();
+
+    if (data.success) {
+      status.textContent = '📤 Bild skickad! Länk: ' + data.data.link;
+    } else {
+      status.textContent = 'Det gick inte att ladda upp bilden: ' + data.data.error;
+    }
+  } catch (error) {
+    status.textContent = 'Ett fel uppstod: ' + error;
+  }
+}
